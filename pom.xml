@@ -34,7 +34,7 @@
 				<configuration>
 					<archive>
 						<manifest>
-							<mainClass>com.spencerseidel.CircuitTester</mainClass>
+							<mainClass>com.spencerseidel.wng.CircuitTester</mainClass>
 						</manifest>
 					</archive>
 					<descriptorRefs>

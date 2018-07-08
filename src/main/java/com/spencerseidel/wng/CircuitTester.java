@@ -18,6 +18,8 @@ import com.jsyn.unitgen.WhiteNoise;
 import com.jsyn.unitgen.RedNoise;
 import com.jsyn.unitgen.PinkNoise;
 
+import com.spencerseidel.wng.WindCircuit;
+
 /**
  * Listen to a circuit while tweaking it knobs. Show output in a scope.
  *

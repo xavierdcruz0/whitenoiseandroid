@@ -1,6 +1,7 @@
 package com.spencerseidel.whitenoisegenerator;
 
 import android.content.Context;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -35,14 +36,12 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences spPrefs;
     private SharedPreferences.Editor spEditor;
 
-    public static final String PREFS = "whitenoisegeneratorprefs";
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        spPrefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        spPrefs = PreferenceManager.getDefaultSharedPreferences(this);
         spEditor = spPrefs.edit();
 
         synth = JSyn.createSynthesizer(new JSynAndroidAudioDevice());
@@ -113,6 +112,7 @@ public class MainActivity extends AppCompatActivity {
             public void onStopTrackingTouch(SeekBar seekBar) {
                 whiteNoiseAmp.set((double)progress/100.0);
                 spEditor.putFloat("wnAmp", ((float)progress/(float)100.0));
+                spEditor.apply();
             }
         });
 
@@ -136,6 +136,7 @@ public class MainActivity extends AppCompatActivity {
             public void onStopTrackingTouch(SeekBar seekBar) {
                 pinkNoiseAmp.set(progress/100.0);
                 spEditor.putFloat("pnAmp", ((float)progress/(float)100.0));
+                spEditor.apply();
             }
         });
 
@@ -159,6 +160,7 @@ public class MainActivity extends AppCompatActivity {
             public void onStopTrackingTouch(SeekBar seekBar) {
                 whiteNoiseLPFFreq.set(40 + 5960.0*((double)progress/100.0));
                 spEditor.putFloat("wnLPFFreq", (float)6000.0*((float)progress/(float)100.0));
+                spEditor.apply();
             }
         });
 
@@ -182,11 +184,14 @@ public class MainActivity extends AppCompatActivity {
             public void onStopTrackingTouch(SeekBar seekBar) {
                 pinkNoiseLPFFreq.set(40.0 + 5960.0*((double)progress/100.0));
                 spEditor.putFloat("pnLPFFreq", (float)40.0 + (float)5960.0*((float)progress/(float)100.0));
+                spEditor.apply();
             }
         });
     }
 
     protected void start() {
+        stop();
+
         // Start synthesizer using default stereo output at 44100 Hz.
         synth.start();
         // Start the LineOut. It will pull data from the other units.

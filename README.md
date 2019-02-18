@@ -1,9 +1,6 @@
-# White noise generator
+# White Noise Generator -- Android
 
-This is the very beginning of a simple white-noise generator app for Android that has equalizer options.
-
-I'm building it to learn how to make Android apps. Don't expect too much :-)
-
-It uses the [jsyn library](https://github.com/philburk/jsyn).
-
+This is a white noise generator for Android. It uses jsyn to produce real
+non-looping white noise which you can adjust with simple low-pass filters to
+suit your tastes.
 

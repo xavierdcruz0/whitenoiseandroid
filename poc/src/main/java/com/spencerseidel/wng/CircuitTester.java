@@ -18,7 +18,7 @@ import com.jsyn.unitgen.WhiteNoise;
 import com.jsyn.unitgen.RedNoise;
 import com.jsyn.unitgen.PinkNoise;
 
-import com.spencerseidel.wng.WindCircuit;
+import com.spencerseidel.wng.NoiseCircuit;
 
 /**
  * Listen to a circuit while tweaking it knobs. Show output in a scope.
@@ -72,9 +72,10 @@ public class CircuitTester extends JApplet {
         //return new DualOscillatorSynthVoice();
         //return new WindCircuit();
         //return new WhiteNoise();
-        return new BrownNoise();
+        //return new BrownNoise();
         //return new RedNoise();
         //return new PinkNoise();
+        return new NoiseCircuit();
     }
 
     @Override
@@ -84,12 +85,12 @@ public class CircuitTester extends JApplet {
         // Start the LineOut. It will pull data from the other units.
         lineOut.start();
 
-        scope.start();
+        //scope.start();
     }
 
     @Override
     public void stop() {
-        scope.stop();
+        //scope.stop();
         synth.stop();
     }
 
@@ -99,7 +100,4 @@ public class CircuitTester extends JApplet {
         JAppletFrame frame = new JAppletFrame("JSyn Circuit Tester", applet);
         frame.setSize(600, 600);
         frame.setVisible(true);
-        frame.test();
-    }
-
-}
+        frame.test(); } }

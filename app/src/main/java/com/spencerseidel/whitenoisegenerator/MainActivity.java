@@ -23,130 +23,166 @@ import com.jsyn.unitgen.WhiteNoise;
 public class MainActivity extends AppCompatActivity {
 
     // GUI elements
-    private Button actionButton;
-    private SeekBar wnAmpSeekBar;
-    private SeekBar pnAmpSeekBar;
-    private SeekBar wnLPFFreqSeekBar;
-    private SeekBar pnLPFFreqSeekBar;
+    private Button m_actionButton;
+    private SeekBar m_wnAmpSeekBar;
+    private SeekBar m_pnAmpSeekBar;
+    private SeekBar m_wnLPFFreqSeekBar;
+    private SeekBar m_pnLPFFreqSeekBar;
+
+    private AmplitudeHandler m_wnAmpHandler;
+    private AmplitudeHandler m_pnAmpHandler;
+    private FrequencyHandler m_wnFreqHandler;
+    private FrequencyHandler m_pnFreqHandler;
 
     // Synth elements
-    private Synthesizer synth;
-    private LineOut lineOut;
-    private WhiteNoise whiteNoise;
-    private UnitInputPort whiteNoiseAmp;
-    private FilterLowPass whiteNoiseLPF;
-    private UnitInputPort whiteNoiseLPFFreq;
-    private PinkNoise pinkNoise;
-    private UnitInputPort pinkNoiseAmp;
-    private FilterLowPass pinkNoiseLPF;
-    private UnitInputPort pinkNoiseLPFFreq;
-    private PassThrough mixer;
+    private Synthesizer m_synth;
+    private LineOut m_lineOut;
+    private WhiteNoise m_whiteNoise;
+    private FilterLowPass m_whiteNoiseLPF;
+    private PinkNoise m_pinkNoise;
+    private FilterLowPass m_pinkNoiseLPF;
+    private PassThrough m_mixer;
+
     private SharedPreferences spPrefs;
-    private SharedPreferences.Editor spEditor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Prefs
+        // Get default shared preferences
         spPrefs = PreferenceManager.getDefaultSharedPreferences(this);
-        spEditor = spPrefs.edit();
 
-        // Initialize GUI elements
-        actionButton = (Button)findViewById(R.id.actionButton);
-        actionButton.setOnClickListener(actionButtonListener);
+        // Grab our GUI elements by searching view
+        m_actionButton = (Button)findViewById(R.id.actionButton);
+        m_wnAmpSeekBar = (SeekBar)findViewById(R.id.wnAmpSeekBar);
+        m_pnAmpSeekBar = (SeekBar)findViewById(R.id.pnAmpSeekBar);
+        m_wnLPFFreqSeekBar = (SeekBar)findViewById(R.id.wnToneSeekBar);
+        m_pnLPFFreqSeekBar = (SeekBar)findViewById(R.id.pnToneSeekBar);
 
-        wnAmpSeekBar = (SeekBar)findViewById(R.id.wnAmpSeekBar);
-        wnAmpSeekBar.setOnSeekBarChangeListener(wnAmpSeekBarChangeListener);
+        // Initialize our synth and add synth units
+        m_synth = JSyn.createSynthesizer(new JSynAndroidAudioDevice());
+        m_synth.add(m_lineOut = new LineOut());
+        m_synth.add(m_whiteNoise = new WhiteNoise());
+        m_synth.add(m_pinkNoise = new PinkNoise());
+        m_synth.add(m_whiteNoiseLPF = new FilterLowPass());
+        m_synth.add(m_pinkNoiseLPF = new FilterLowPass());
+        m_synth.add(m_mixer = new PassThrough());
 
-        pnAmpSeekBar = (SeekBar)findViewById(R.id.pnAmpSeekBar);
-        pnAmpSeekBar.setOnSeekBarChangeListener(pnAmpSeekBarChangeListener);
+        // Create our synth unit chain by connecting outputs
+        // with inputs:
+        //
+        // WN -> WNLPF ->-+
+        //                |
+        //                +--> passive passthrough mixer --> line out
+        //                |
+        // PN -> PMLPF ->-+
+        //
+        m_whiteNoise.output.connect(m_whiteNoiseLPF.input);
+        m_pinkNoise.output.connect(m_pinkNoiseLPF.input);
 
-        wnLPFFreqSeekBar = (SeekBar)findViewById(R.id.wnToneSeekBar);
-        wnLPFFreqSeekBar.setOnSeekBarChangeListener(wnToneSeekBarChangeListener);
+        m_whiteNoiseLPF.output.connect(m_mixer.input);
+        m_pinkNoiseLPF.output.connect(m_mixer.input);
 
-        pnLPFFreqSeekBar = (SeekBar)findViewById(R.id.pnToneSeekBar);
-        pnLPFFreqSeekBar.setOnSeekBarChangeListener(pnToneSeekBarChangeListener);
+        m_mixer.output.connect(0, m_lineOut.input, 0);
+        m_mixer.output.connect(0, m_lineOut.input, 1);
 
-        // Set up synth
-        synth = JSyn.createSynthesizer(new JSynAndroidAudioDevice());
-        synth.add(lineOut = new LineOut());
-        synth.add(whiteNoise = new WhiteNoise());
-        synth.add(pinkNoise = new PinkNoise());
-        synth.add(whiteNoiseLPF = new FilterLowPass());
-        synth.add(pinkNoiseLPF = new FilterLowPass());
-        synth.add(mixer = new PassThrough());
+        // Set listener for the action button (stop and start noise)
+        m_actionButton.setOnClickListener(actionButtonListener);
 
-        // Connect units
-        whiteNoise.output.connect(whiteNoiseLPF.input);
-        pinkNoise.output.connect(pinkNoiseLPF.input);
+        // Set up our handlers for amplitude Seekbar and UnitInputPorts
+        m_wnAmpHandler = new AmplitudeHandler(m_whiteNoise.amplitude, m_wnAmpSeekBar, "wnAmp", spPrefs);
+        m_wnAmpSeekBar.setOnSeekBarChangeListener(m_wnAmpHandler);
+        m_pnAmpHandler = new AmplitudeHandler(m_pinkNoise.amplitude, m_pnAmpSeekBar, "pnAmp", spPrefs);
+        m_pnAmpSeekBar.setOnSeekBarChangeListener(m_pnAmpHandler);
 
-        whiteNoiseLPF.output.connect(mixer.input);
-        pinkNoiseLPF.output.connect(mixer.input);
-
-        mixer.output.connect(0, lineOut.input, 0);
-        mixer.output.connect(0, lineOut.input, 1);
-
-        // For readability?
-        whiteNoiseAmp = whiteNoise.amplitude;
-        pinkNoiseAmp = pinkNoise.amplitude;
-        whiteNoiseLPFFreq = whiteNoiseLPF.frequency;
-        pinkNoiseLPFFreq = pinkNoiseLPF.frequency;
+        // Set up our handlers for frequency Seekbar and UnitInputPorts
+        m_wnFreqHandler = new FrequencyHandler(m_whiteNoiseLPF.frequency, m_wnLPFFreqSeekBar, "wnLPFFreq", spPrefs);
+        m_wnLPFFreqSeekBar.setOnSeekBarChangeListener(m_wnFreqHandler);
+        m_pnFreqHandler = new FrequencyHandler(m_pinkNoiseLPF.frequency, m_pnLPFFreqSeekBar, "pnLPFFreq", spPrefs);
+        m_pnLPFFreqSeekBar.setOnSeekBarChangeListener(m_pnFreqHandler);
 
         // Set up synth according to saved prefs or defaults
-        whiteNoiseAmp.set((double)spPrefs.getFloat("wnAmp", (float)0.5));
-        pinkNoiseAmp.set((double)spPrefs.getFloat("pnAmp", (float)0.5));
-        whiteNoiseLPFFreq.set((double)spPrefs.getFloat("wnLPFFreq", (float)1000.0));
-        pinkNoiseLPFFreq.set((double)spPrefs.getFloat("pnLPFFreq", (float)1000.0));
+        m_wnAmpHandler.setInitValue();
+        m_pnAmpHandler.setInitValue();
+        m_wnFreqHandler.setInitValue();
+        m_pnFreqHandler.setInitValue();
 
         // Set up GUI elements to match the synth values
-        wnAmpSeekBar.setProgress((int)(whiteNoiseAmp.get()*100.0));
-        pnAmpSeekBar.setProgress((int)(pinkNoiseAmp.get()*100.0));
-        wnLPFFreqSeekBar.setProgress((int)((whiteNoiseLPFFreq.get()/6000.0)*100.0));
-        pnLPFFreqSeekBar.setProgress((int)((pinkNoiseLPFFreq.get()/6000.0)*100.0));
+        m_wnAmpHandler.setSeekBarProgress();
+        m_pnAmpHandler.setSeekBarProgress();
+        m_wnFreqHandler.setSeekBarProgress();
+        m_pnFreqHandler.setSeekBarProgress();
     }
 
     protected void start() {
-        if (synth.isRunning()) {
+        if (m_synth.isRunning()) {
             stop();
         }
 
         // Start synthesizer using default stereo output at 44100 Hz.
-        synth.start();
+        m_synth.start();
         // Start the LineOut. It will pull data from the other units.
-        lineOut.start();
+        m_lineOut.start();
     }
 
     protected void stop() {
-        synth.stop();
+        m_synth.stop();
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
-    // Listeners
+    // Listener functions
+
+    // We only have a single button, so we'll handle that with a simple listener function
     View.OnClickListener actionButtonListener = new View.OnClickListener() {
 
         @Override
         public void onClick(View v) {
-            if (synth.isRunning()) {
+            if (m_synth.isRunning()) {
                 stop();
             }
             else {
                 start();
             }
 
-            actionButton.setText((synth.isRunning() ? "Stop making noise" : "Start making noise"));
-            Toast.makeText(MainActivity.this, "Whitenoise " + (synth.isRunning() ? "on" : "off"), Toast.LENGTH_SHORT).show();
+            m_actionButton.setText((m_synth.isRunning() ? "Stop making noise" : "Start making noise"));
+            Toast.makeText(MainActivity.this, "Whitenoise " + (m_synth.isRunning() ? "on" : "off"), Toast.LENGTH_SHORT).show();
         }
     };
 
-    SeekBar.OnSeekBarChangeListener wnAmpSeekBarChangeListener = new SeekBar.OnSeekBarChangeListener() {
-        int progress = 0;
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    // Inner classes for handling amplitude and tone changes. These could probably use a common
+    // parent class, but it's only two types, so . . .
+
+    //  Amplitude/Seekbar handler
+    class AmplitudeHandler implements SeekBar.OnSeekBarChangeListener {
+        private int m_progress = 0;
+        private String m_prefsString;
+        private static final double m_MAX_SEEK_VALUE = 100.0;
+        private static final double m_DEFAULT_AMP = 0.5;
+        private SharedPreferences m_prefs;
+        private UnitInputPort m_port;
+        private SeekBar m_seekBar;
+
+        AmplitudeHandler(UnitInputPort port, SeekBar seekBar, String prefsString, SharedPreferences prefs) {
+            m_port = port;
+            m_seekBar = seekBar;
+            m_prefsString = prefsString;
+            m_prefs = prefs;
+        }
+
+        void setSeekBarProgress() {
+            m_seekBar.setProgress((int)(m_port.get()*m_MAX_SEEK_VALUE));
+        }
+
+        void setInitValue() {
+            m_port.set((double)m_prefs.getFloat(m_prefsString, (float)m_DEFAULT_AMP));
+        }
 
         @Override
         public void onProgressChanged(SeekBar seekBar, int progressValue, boolean fromUser) {
-            progress = progressValue;
-            whiteNoiseAmp.set((double)progress/100.0);
+            m_progress = progressValue;
+            m_port.set((double)m_progress/m_MAX_SEEK_VALUE);
         }
 
         @Override
@@ -156,19 +192,44 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onStopTrackingTouch(SeekBar seekBar) {
-            whiteNoiseAmp.set((double)progress/100.0);
-            spEditor.putFloat("wnAmp", ((float)progress/(float)100.0));
-            spEditor.apply();
+            SharedPreferences.Editor prefsEditor = m_prefs.edit();
+            m_port.set((double)m_progress/m_MAX_SEEK_VALUE);
+            prefsEditor.putFloat(m_prefsString, ((float)m_progress/(float)m_MAX_SEEK_VALUE));
+            prefsEditor.apply();
         }
-    };
+    }
 
-    SeekBar.OnSeekBarChangeListener pnAmpSeekBarChangeListener = new SeekBar.OnSeekBarChangeListener() {
-        int progress = 0;
+    // Frequency/Seekbar Handler
+    class FrequencyHandler implements SeekBar.OnSeekBarChangeListener {
+        private int m_progress = 0;
+        private String m_prefsString;
+        private static final double m_MAX_SEEK_VALUE = 100.0;
+        private static final double m_MAX_FREQ_VALUE = 5960.0;
+        private static final double m_OFFSET_VALUE = 40.0;
+        private static final double m_DEFAULT_FREQ = 1000.0;
+        private SharedPreferences m_prefs;
+        private UnitInputPort m_port;
+        private SeekBar m_seekBar;
+
+        FrequencyHandler(UnitInputPort port, SeekBar seekBar, String prefsString, SharedPreferences prefs) {
+            m_port = port;
+            m_seekBar = seekBar;
+            m_prefsString = prefsString;
+            m_prefs = prefs;
+        }
+
+        void setSeekBarProgress() {
+            m_seekBar.setProgress((int)((m_port.get()/(m_MAX_FREQ_VALUE+m_OFFSET_VALUE))*100.0));
+        }
+
+        void setInitValue() {
+            m_port.set((double)m_prefs.getFloat(m_prefsString, (float)m_DEFAULT_FREQ));
+        }
 
         @Override
         public void onProgressChanged(SeekBar seekBar, int progressValue, boolean fromUser) {
-            progress = progressValue;
-            pinkNoiseAmp.set((double)progress/100.0);
+            m_progress = progressValue;
+            m_port.set(m_OFFSET_VALUE + m_MAX_FREQ_VALUE*((double)m_progress/m_MAX_SEEK_VALUE));
         }
 
         @Override
@@ -178,53 +239,11 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onStopTrackingTouch(SeekBar seekBar) {
-            pinkNoiseAmp.set((double)progress/100.0);
-            spEditor.putFloat("pnAmp", ((float)progress/(float)100.0));
-            spEditor.apply();
+            SharedPreferences.Editor prefsEditor = m_prefs.edit();
+
+            m_port.set(m_OFFSET_VALUE + m_MAX_FREQ_VALUE*((double)m_progress/m_MAX_SEEK_VALUE));
+            prefsEditor.putFloat(m_prefsString, (float)m_OFFSET_VALUE + (float)m_MAX_FREQ_VALUE*((float)m_progress/(float)m_MAX_SEEK_VALUE));
+            prefsEditor.apply();
         }
-    };
-
-    SeekBar.OnSeekBarChangeListener wnToneSeekBarChangeListener = new SeekBar.OnSeekBarChangeListener() {
-        int progress = 0;
-
-        @Override
-        public void onProgressChanged(SeekBar seekBar, int progressValue, boolean fromUser) {
-            progress = progressValue;
-            whiteNoiseLPFFreq.set(40.0 + 5960.0*((double)progress/100.0));
-        }
-
-        @Override
-        public void onStartTrackingTouch(SeekBar seekBar) {
-            // NOP
-        }
-
-        @Override
-        public void onStopTrackingTouch(SeekBar seekBar) {
-            whiteNoiseLPFFreq.set(40.0 + 5960.0*((double)progress/100.0));
-            spEditor.putFloat("wnLPFFreq", (float)40.0 + (float)5960.0*((float)progress/(float)100.0));
-            spEditor.apply();
-        }
-    };
-
-    SeekBar.OnSeekBarChangeListener pnToneSeekBarChangeListener = new SeekBar.OnSeekBarChangeListener() {
-        int progress = 0;
-
-        @Override
-        public void onProgressChanged(SeekBar seekBar, int progressValue, boolean fromUser) {
-            progress = progressValue;
-            pinkNoiseLPFFreq.set(40.0 + 5960.0*((double)progress/100.0));
-        }
-
-        @Override
-        public void onStartTrackingTouch(SeekBar seekBar) {
-            // NOP
-        }
-
-        @Override
-        public void onStopTrackingTouch(SeekBar seekBar) {
-            pinkNoiseLPFFreq.set(40.0 + 5960.0*((double)progress/100.0));
-            spEditor.putFloat("pnLPFFreq", (float)40.0 + (float)5960.0*((float)progress/(float)100.0));
-            spEditor.apply();
-        }
-    };
+    }
 }

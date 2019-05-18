@@ -9,6 +9,7 @@ import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.Toast;
 import android.content.SharedPreferences;
+import android.hardware.SensorEventListener;
 
 import com.jsyn.JSyn;
 import com.jsyn.Synthesizer;
@@ -28,6 +29,8 @@ public class MainActivity extends AppCompatActivity {
     private SeekBar m_pnAmpSeekBar;
     private SeekBar m_wnLPFFreqSeekBar;
     private SeekBar m_pnLPFFreqSeekBar;
+
+    private SensorEventListener m_sensorEventListener;
 
     private AmplitudeHandler m_wnAmpHandler;
     private AmplitudeHandler m_pnAmpHandler;
